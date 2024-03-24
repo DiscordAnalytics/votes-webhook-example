@@ -1,10 +1,10 @@
-// Import express module. Docs: https://expressjs.com
-const express = require('express');
-// Import adios module. Docs: https://axios-http.com
-const axios = require("axios")
+// Import itty-router module. Docs: https://itty.dev/itty-router
+import { Router } from 'itty-router';
+// Import axios module. Docs: https://axios-http.com
+import axios from "axios";
 
-// Create an express instance
-const app = express();
+// Create an itty router instance
+const router = Router();
 
 //////////////////////////////////////
 // Complete the following variables //
@@ -14,12 +14,15 @@ const discordAnalyticsToken = "TOKEN" // Your Discord Analytics bot token here: 
 const port = 3000 // Port to listen
 
 // Create route /webhook who can handle a POST request
-app.post('/webhook', async (req, res) => {
+router.post('/webhook', async (request, env) => {
   // Extract request body
-  const { botId, voterId, provider, date } = req.body;
+  const txt = await request.text();
+  const { botId, voterId, provider, date } = JSON.parse(txt)
+
+  if (!botId || !voterId || !provider || !date) return new Response("Invalid body", { status: 400 })
 
   // Check if request is sent by Discord Analytics
-  if (req.headers.authorization !== discordAnalyticsToken) return res.status(401).send("Invalid token")
+  if (!request.headers.get("Authorization") || request.headers.get("Authorization") !== discordAnalyticsToken) return new Response("Unauthorized", { status: 401 })
 
   // Initialize Discord message content
   const formData = new FormData()
@@ -34,15 +37,17 @@ app.post('/webhook', async (req, res) => {
   })
 
   // Tell Discord Analytics that everything is ok
-  res.status(200).send("OK")
+  return new Response("OK", { status: 200 })
 });
 
 // Create a route to test if app is live
-app.get("/", (req, res) => {
-  res.status(200).send("App is live!")
+router.get("/", (request, env) => {
+  return new Response("App is live!", { status: 200 })
 })
 
-// Launch app
-app.listen(port, () => {
-    console.log('Server is running on port ' + port);
-});
+// If route does not exist, return 404 error
+router.all('*', () => new Response('Not found', { status: 404 }));
+
+export default {
+	fetch: router.handle,
+};
